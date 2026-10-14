@@ -1,0 +1,42 @@
+{
+  "name": "eightgrid",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EightGrid — an Airtable-style collaborative database for Eight Limbs",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "netlify-build": "tsx scripts/migrate.ts && next build"
+  },
+  "dependencies": {
+    "bcryptjs": "3.0.3",
+    "clsx": "2.1.1",
+    "drizzle-orm": "0.45.4",
+    "lucide-react": "0.468.0",
+    "next": "15.5.27",
+    "next-auth": "5.0.0-beta.32",
+    "papaparse": "5.5.3",
+    "pg": "8.23.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.17",
+    "@types/node": "22.19.1",
+    "@types/papaparse": "5.5.0",
+    "@types/pg": "8.15.6",
+    "@types/react": "19.2.6",
+    "@types/react-dom": "19.2.3",
+    "drizzle-kit": "0.31.11",
+    "tailwindcss": "4.1.17",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}
