@@ -41,6 +41,10 @@ export function errorResponse(e: unknown) {
 }
 
 export async function readJson(req: Request): Promise<unknown> {
+  // Requiring a JSON content type means browsers must preflight cross-site requests (CSRF defense).
+  if (!(req.headers.get("content-type") ?? "").toLowerCase().includes("application/json")) {
+    throw new HttpError(415, "Content-Type must be application/json");
+  }
   try {
     return await req.json();
   } catch {

@@ -74,6 +74,9 @@ export function opsForType(type: FieldType): OpInfo[] {
         { op: "isEmpty", label: "is empty", valueless: true },
         { op: "isNotEmpty", label: "is not empty", valueless: true },
       ];
+    case "formula":
+      // Formulas may return text or numbers; offer both kinds of comparison.
+      return [...TEXT_OPS, ...NUM_OPS.filter((o) => ["lt", "lte", "gt", "gte"].includes(o.op))];
     case "attachment":
       return [
         { op: "isEmpty", label: "is empty", valueless: true },
@@ -108,7 +111,10 @@ function matches(cond: FilterCondition, field: Field, record: RecordRow, getter:
   // Incomplete conditions don't filter anything out, like Airtable
   if (noValue) return true;
 
-  switch (field.type) {
+  const numericFormula =
+    field.type === "formula" &&
+    (["lt", "lte", "gt", "gte"].includes(cond.op) || (typeof value === "number" && (cond.op === "is" || cond.op === "isNot")));
+  switch (numericFormula ? "number" : field.type) {
     case "number":
     case "currency":
     case "percent":

@@ -98,7 +98,7 @@ export function Toolbar() {
           >
             {() => <FilterEditor />}
           </PopoverButton>
-          {(view.type === "grid" || view.type === "gallery") && (
+          {view.type === "grid" && (
             <PopoverButton
               className={clsx("toolbar-btn", groupCount && "bg-purple-100 text-purple-900 hover:bg-purple-100")}
               button={
