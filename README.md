@@ -27,7 +27,7 @@ Eight Limbs' in-house, Airtable-style collaborative database. It runs as a Next.
 **Collaboration**
 - Each base has members with one of five roles: owner, creator, editor, commenter, viewer.
 - You can invite people by email before they have an account. They get access when they sign up.
-- Live updates: other people's edits appear within about 2.5 seconds.
+- Live updates: other people's edits appear within about 3 seconds while you're using a base.
 
 **Import and forms**
 - CSV import as a new table (field types are detected automatically) or into an existing table (you map columns to fields).
@@ -133,7 +133,7 @@ The app has no Netlify-specific code. You can deploy it to Cloudflare Workers wi
 ## Known limitations / roadmap
 
 - **Attachments** are stored as links (Google Drive, Dropbox, any URL). File upload to Supabase Storage or Netlify Blobs is the natural next step.
-- **Live updates** use short polling of a change feed (`/api/bases/:id/changes`). This works on any serverless host. For instant updates, swap in Supabase Realtime or a WebSocket service.
+- **Live updates** poll a change feed (`/api/bases/:id/changes`), which works on any serverless host. Polling adapts to keep hosting costs down: every 3s while someone is active, slowing to 10s, 30s and then 2 minutes as a tab sits idle, and stopping entirely in background tabs. For instant updates, swap in Supabase Realtime or a WebSocket service.
 - **Table size**: each table loads entirely into the browser, so filtering and sorting feel instant. That's comfortable up to tens of thousands of records per table.
 - **Not built yet**: lookup and rollup fields, undo, automations, interfaces/dashboards, and record-level permissions.
 - There's no rate limiting on public forms yet. Netlify's built-in protections or a CAPTCHA can be added if a form gets abused.

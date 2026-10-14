@@ -22,7 +22,8 @@ interface Change {
   clientId: string | null;
 }
 
-const POLL_MS = 2500;
+/** Poll interval while someone is using the base; slows down when idle. */
+const POLL_ACTIVE_MS = 3000;
 
 export function BaseApp({
   initial,
@@ -89,34 +90,78 @@ export function BaseApp({
   }, [base.id]);
 
   // Realtime: poll the base's change feed and refresh what other people changed.
+  // Polling is adaptive so idle tabs don't generate constant serverless traffic.
   useEffect(() => {
     let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const tick = async () => {
-      if (!document.hidden) {
-        try {
-          const res = await api<{ latest: number; changes: Change[] }>(
-            `/api/bases/${base.id}/changes?since=${seqRef.current}`,
-          );
-          seqRef.current = res.latest;
-          const foreign = res.changes.filter((c) => c.clientId !== clientId);
-          if (foreign.some((c) => c.kind === "schema")) {
-            await reloadBase();
-          }
-          const tables = new Set(foreign.filter((c) => c.kind.startsWith("record.") && c.tableId).map((c) => c.tableId!));
-          // Our own link edits touch other tables too
-          for (const c of res.changes) if (c.kind === "record.links" && c.tableId) tables.add(c.tableId);
-          for (const t of tables) if (recordsStore.isLoaded(t)) recordsStore.load(t, true).catch(() => {});
-        } catch (e) {
-          if ((e as { status?: number }).status === 404) return; // removed from base
-        }
-      }
-      if (!stopped) timer = setTimeout(tick, POLL_MS);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inflight = false;
+    let lastActivity = Date.now();
+    let lastForeign = 0;
+
+    const interval = () => {
+      const now = Date.now();
+      const recent = Math.max(lastActivity, lastForeign);
+      if (now - recent < 60_000) return POLL_ACTIVE_MS;
+      if (now - lastActivity < 5 * 60_000) return 10_000;
+      if (now - lastActivity < 30 * 60_000) return 30_000;
+      return 120_000;
     };
-    timer = setTimeout(tick, POLL_MS);
+
+    const schedule = (ms = interval()) => {
+      clearTimeout(timer);
+      if (!stopped && !document.hidden) timer = setTimeout(tick, ms);
+    };
+
+    const tick = async () => {
+      if (stopped || document.hidden || inflight) return;
+      inflight = true;
+      try {
+        const res = await api<{ latest: number; changes: Change[] }>(
+          `/api/bases/${base.id}/changes?since=${seqRef.current}`,
+        );
+        seqRef.current = res.latest;
+        const foreign = res.changes.filter((c) => c.clientId !== clientId);
+        if (foreign.length) lastForeign = Date.now();
+        if (foreign.some((c) => c.kind === "schema")) {
+          await reloadBase();
+        }
+        const tables = new Set(foreign.filter((c) => c.kind.startsWith("record.") && c.tableId).map((c) => c.tableId!));
+        // Our own link edits touch other tables too
+        for (const c of res.changes) if (c.kind === "record.links" && c.tableId) tables.add(c.tableId);
+        for (const t of tables) if (recordsStore.isLoaded(t)) recordsStore.load(t, true).catch(() => {});
+      } catch (e) {
+        if ((e as { status?: number }).status === 404) {
+          stopped = true; // removed from base
+          return;
+        }
+      } finally {
+        inflight = false;
+      }
+      schedule();
+    };
+
+    // Any interaction speeds polling back up; coming back to the tab checks right away.
+    const onActivity = () => {
+      const wasIdle = Date.now() - lastActivity > 60_000;
+      lastActivity = Date.now();
+      if (wasIdle) schedule(0);
+    };
+    const onVisible = () => {
+      if (document.hidden) return clearTimeout(timer);
+      lastActivity = Date.now();
+      schedule(0);
+    };
+    const events = ["pointerdown", "keydown", "wheel"] as const;
+    for (const ev of events) window.addEventListener(ev, onActivity, { passive: true });
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    schedule(POLL_ACTIVE_MS);
     return () => {
       stopped = true;
       clearTimeout(timer);
+      for (const ev of events) window.removeEventListener(ev, onActivity);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
     };
   }, [base.id, reloadBase]);
 
